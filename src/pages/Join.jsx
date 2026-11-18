@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { Button, Field, Icon, Notice } from '../components.jsx'
 import { AuthShell } from './AuthShell.jsx'
 import { intakeBranch, joinQueueWithAccount, myDependents, submitIntake } from '../api-client.js'
+import { addCalendarMonths, clinicDate } from '../clock.js'
 
 /** `#join/<branch>` (counter poster QR) and `#kiosk/<branch>/<code>` (front-desk tablet). */
 export function parseJoinHash(hash) {
@@ -116,6 +117,9 @@ function IntakeForm({ branch, code: initialCode, kiosk, onDone, onBack }) {
   const [self, setSelf] = useState(blank), [deps, setDeps] = useState([]), [visitFor, setVisitFor] = useState('self')
   const [joinQueue, setJoinQueue] = useState(true), [code, setCode] = useState(initialCode), [consent, setConsent] = useState(false)
   const [scan, setScan] = useState(null), [busy, setBusy] = useState(false), [errors, setErrors] = useState({}), [message, setMessage] = useState('')
+  const today = clinicDate()
+  const maxDob = today
+  const minDob = addCalendarMonths(today, -12 * 120)
   const set = (k, v) => setSelf(s => ({ ...s, [k]: v }))
   const fromId = k => scan?.fields?.includes(k)
   const submit = async e => {
@@ -138,10 +142,10 @@ function IntakeForm({ branch, code: initialCode, kiosk, onDone, onBack }) {
         <Field label="Last name" required error={err('self.last_name')} hint={fromId('last_name') ? 'From your ID, please check' : null}><input className={fromId('last_name') ? 'from-id' : ''} value={self.last_name} onChange={e => set('last_name', e.target.value)} autoComplete="family-name"/></Field>
       </div>
       <div className="join-row">
-        <Field label="Date of birth" required error={err('self.date_of_birth')} hint={fromId('date_of_birth') ? 'From your ID, please check' : WHY.date_of_birth}><input className={fromId('date_of_birth') ? 'from-id' : ''} type="date" value={self.date_of_birth} onChange={e => set('date_of_birth', e.target.value)}/></Field>
+        <Field label="Date of birth" required error={err('self.date_of_birth')} hint={fromId('date_of_birth') ? 'From your ID, please check' : WHY.date_of_birth}><input className={fromId('date_of_birth') ? 'from-id' : ''} type="date" min={minDob} max={maxDob} value={self.date_of_birth} onChange={e => set('date_of_birth', e.target.value)}/></Field>
         <Field label="Sex"><select value={self.sex} onChange={e => set('sex', e.target.value)}><option value="">Prefer not to say</option><option>Female</option><option>Male</option></select></Field>
       </div>
-      <Field label="Mobile number" required error={err('self.phone')} hint={WHY.phone}><input type="tel" inputMode="tel" value={self.phone} onChange={e => set('phone', e.target.value)} placeholder="0917 123 4567" autoComplete="tel"/></Field>
+      <Field label="Mobile number" required error={err('self.phone')} hint={WHY.phone}><input type="tel" inputMode="tel" value={self.phone} onChange={e => set('phone', e.target.value.replace(/\D/g, '').replace(/^0+/, '').slice(0, 10))} maxLength={10} placeholder="9171234567" autoComplete="tel"/></Field>
       <Field label="Email (optional)" error={err('self.email')} hint={WHY.email}><input type="email" value={self.email} onChange={e => set('email', e.target.value)} autoComplete="email"/></Field>
       <Field label="Address (optional)" error={err('self.address')} hint={WHY.address}><input value={self.address} onChange={e => set('address', e.target.value)} autoComplete="street-address"/></Field>
     </fieldset>
@@ -149,7 +153,7 @@ function IntakeForm({ branch, code: initialCode, kiosk, onDone, onBack }) {
       <p className="join-why">{WHY.emergency}</p>
       <div className="join-row">
         <Field label="Name" required error={err('self.emergency_contact.name')}><input value={self.emergency_contact.name} onChange={e => set('emergency_contact', { ...self.emergency_contact, name: e.target.value })}/></Field>
-        <Field label="Mobile number" required error={err('self.emergency_contact.phone')}><input type="tel" inputMode="tel" value={self.emergency_contact.phone} onChange={e => set('emergency_contact', { ...self.emergency_contact, phone: e.target.value })}/></Field>
+        <Field label="Mobile number" required error={err('self.emergency_contact.phone')}><input type="tel" inputMode="tel" value={self.emergency_contact.phone} onChange={e => set('emergency_contact', { ...self.emergency_contact, phone: e.target.value.replace(/\D/g, '').replace(/^0+/, '').slice(0, 10) })} maxLength={10} placeholder="9171234567"/></Field>
       </div>
     </fieldset>
     <Dependents deps={deps} setDeps={setDeps} errors={errors}/>

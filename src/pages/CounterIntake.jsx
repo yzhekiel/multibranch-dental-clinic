@@ -110,6 +110,17 @@ function ReviewDialog({ row, idTypes, toast, onClose, onDone, store }) {
     </div>}
     <div className="ci-id">
       <Field label="ID shown"><select value={idType} onChange={e => setIdType(e.target.value)}>{Object.entries(idTypes).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
+      {idType === 'other' && (
+        <Field label="Specify ID type" required>
+          <input
+            type="text"
+            placeholder="e.g., PhilHealth ID, School ID, Company ID"
+            value={corrections.id_other || ''}
+            onChange={e => setCorrections({ ...corrections, id_other: e.target.value })}
+            aria-required="true"
+          />
+        </Field>
+      )}
       <label className="au-check"><input type="checkbox" checked={idChecked} onChange={e => setIdChecked(e.target.checked)}/> I checked this ID in person (only the type, your name and the time are saved; never the number or a photo)</label>
     </div>
     {err && <p className="au-error" role="alert">{err}</p>}
@@ -145,7 +156,7 @@ function OfferAccount({ patientId, email: stored, toast }) {
 }
 
 export function IdCheck({ patientId, toast = () => {} }) {
-  const [record, setRecord] = useState(null), [type, setType] = useState('philid'), [busy, setBusy] = useState(false)
+  const [record, setRecord] = useState(null), [type, setType] = useState('philid'), [otherText, setOtherText] = useState(''), [busy, setBusy] = useState(false)
   useEffect(() => { setRecord(null); getPatientRecord(patientId).then(r => { if (r.ok) setRecord(r.data) }) }, [patientId])
   if (!record) return null
   const minor = record.minor ? <p className="fd-badge is-late">Minor{record.guardians?.length ? `: guardian ${record.guardians.map(g => g.name).join(', ')}` : ': no guardian linked yet'}</p> : null
@@ -155,7 +166,7 @@ export function IdCheck({ patientId, toast = () => {} }) {
       : <OfferAccount patientId={patientId} email={record.email} toast={toast}/>)}</div>
   const go = async () => {
     setBusy(true)
-    const r = await verifyPatientId(patientId, { id_type: type })
+    const r = await verifyPatientId(patientId, { id_type: type, ...(type === 'other' && otherText ? { other_details: otherText } : {}) })
     setBusy(false)
     if (!r.ok) return toast(firstError(r), 'warning')
     toast('ID check recorded (type only).', 'success')
@@ -164,6 +175,7 @@ export function IdCheck({ patientId, toast = () => {} }) {
   return <div className="ci-idcheck">{minor}
     <p><b>First visit: check the ID.</b> {record.minor ? 'For a minor, check the guardian’s ID.' : ''}</p>
     <div className="au-actions"><select aria-label="ID shown" value={type} onChange={e => setType(e.target.value)}>{Object.entries(ID_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
-      <Button size="sm" variant="soft" disabled={busy} onClick={go}>ID checked</Button></div>
+      {type === 'other' && <input type="text" placeholder="Specify ID (e.g. PhilHealth, Company ID)" value={otherText} onChange={e => setOtherText(e.target.value)} aria-label="Specify ID type" style={{ minWidth: '200px' }}/>}
+      <Button size="sm" variant="soft" disabled={busy || (type === 'other' && !otherText.trim())} onClick={go}>ID checked</Button></div>
   </div>
 }
